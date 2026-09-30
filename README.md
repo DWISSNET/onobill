@@ -106,6 +106,23 @@ onobill/
 └── install.sh               # Auto-installer
 ```
 
+## 💾 Backup & Restore Database
+
+**Auto-backup harian** terpasang otomatis oleh `install.sh` (cron jam 03:00) ke
+`backups/` dengan rotasi 14 hari. Backup manual kapan saja:
+
+```bash
+bash backup.sh                          # backup sekali → backups/onobill-<tgl>.db.gz
+```
+
+Pulihkan dari backup:
+
+```bash
+bash restore.sh backups/onobill-20240930-030000.db.gz   # stop service, restore, start
+```
+
+`restore.sh` otomatis mengamankan DB aktif sebagai `*.pre-restore-*` sebelum menimpa.
+
 ## 🔐 Catatan Keamanan (Production)
 
 1. Set `JWT_SECRET` kuat  2. Ganti password admin default  3. HTTPS via reverse proxy

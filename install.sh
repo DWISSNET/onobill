@@ -132,6 +132,15 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
   ufw allow "${APP_PORT}/tcp" >/dev/null || true
 fi
 
+# ---- 8b. Auto-backup database harian (cron) ----------------------------------
+if [ -f "${INSTALL_DIR}/backup.sh" ]; then
+  chmod +x "${INSTALL_DIR}/backup.sh" "${INSTALL_DIR}/restore.sh" 2>/dev/null || true
+  CRON_LINE="0 3 * * * ONOBILL_DIR=${INSTALL_DIR} ${INSTALL_DIR}/backup.sh >> /var/log/onobill-backup.log 2>&1"
+  ( crontab -l 2>/dev/null | grep -v "onobill.*backup.sh" ; echo "${CRON_LINE}" ) | crontab - 2>/dev/null \
+    && log "Auto-backup harian terpasang (cron 03:00) → ${INSTALL_DIR}/backups" \
+    || warn "crontab tidak tersedia — lewati auto-backup"
+fi
+
 # ---- 9. Selesai --------------------------------------------------------------
 sleep 2
 if systemctl is-active --quiet ${SERVICE_NAME}; then
