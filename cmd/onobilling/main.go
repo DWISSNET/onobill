@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"onobill/internal/config"
 	"onobill/internal/repository"
 	"onobill/internal/service/accounting"
 	"onobill/internal/service/auth"
+	"onobill/internal/service/backup"
 	"onobill/internal/service/billing"
 	"onobill/internal/service/customer"
 	"onobill/internal/service/ipam"
@@ -18,6 +24,7 @@ import (
 	"onobill/internal/service/notify"
 	"onobill/internal/service/payment"
 	"onobill/internal/service/pkg"
+	"onobill/internal/service/portal"
 	"onobill/internal/service/portfwd"
 	"onobill/internal/service/reseller"
 	"onobill/internal/service/router"
@@ -57,6 +64,7 @@ func main() {
 	isolationSvc := isolation.NewService(repo)
 	voucherSvc := voucher.NewService(repo)
 	pkgSvc := pkg.NewService(repo)
+	notifySvc := notify.NewService()
 
 	// IPAM (auto-alokasi IP anti-bentrok) + Port-forward Winbox
 	ipamSvc := ipam.NewService(db)
@@ -92,11 +100,24 @@ func main() {
 		}
 	}
 
-	// Start background workers (overdue marker, auto-isolator, router health)
-	worker.StartAll(billingSvc, routerSvc, isolationSvc, repo)
+	// Auto-backup DB terjadwal (SQLite VACUUM INTO / MySQL mysqldump) + retensi.
+	backupSvc := backup.NewService(db, backup.Config{
+		Driver: cfg.DBDriver,
+		Path:   cfg.DBPath,
+		Host:   cfg.DBHost,
+		Port:   cfg.DBPort,
+		Name:   cfg.DBName,
+		User:   cfg.DBUser,
+		Pass:   cfg.DBPassword,
+	}, "backups", 7)
+
+	// Start background workers (recurring invoice, overdue marker, auto-isolator,
+	// router health, reminder H-3, auto-backup). ctx worker dibatalkan saat shutdown.
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	worker.StartAll(workerCtx, billingSvc, routerSvc, isolationSvc, repo, notifySvc, cfg.BaseURL, backupSvc)
 
 	// Init payment gateway registry (Duitku + KlikQRIS)
-	notifySvc := notify.NewService()
 	payReg := payment.NewRegistry()
 	callbackURL := cfg.BaseURL + "/webhooks/payment"
 	if cfg.DuitkuMerchant != "" && cfg.DuitkuAPIKey != "" {
@@ -116,6 +137,12 @@ func main() {
 		log.Printf("[subscription] migrate warning: %v", err)
 	}
 
+	// Portal pelanggan self-service (login mandiri, lihat tagihan, bayar)
+	portalSvc := portal.NewService(db)
+	if err := portalSvc.AutoMigrate(); err != nil {
+		log.Printf("[portal] migrate warning: %v", err)
+	}
+
 	// Init HTTP handler
 	handler := httptransport.NewHandler(authSvc, customerSvc, billingSvc, routerSvc, tenantSvc, vpnSvc, isolationSvc).
 		WithPayment(payReg, notifySvc, repo).
@@ -123,7 +150,8 @@ func main() {
 		WithBaseURL(cfg.BaseURL).
 		WithSubscription(subSvc).
 		WithVoucher(voucherSvc).
-		WithPackage(pkgSvc)
+		WithPackage(pkgSvc).
+		WithPortal(portalSvc)
 
 	// Muat konfigurasi payment gateway yang tersimpan di DB (dari UI Superadmin)
 	// — menimpa / melengkapi yang dari env var, berlaku tanpa restart.
@@ -148,13 +176,35 @@ func main() {
 	mux := http.NewServeMux()
 	httptransport.SetupRoutes(mux, handler)
 
-	// Start server
+	// Start server dengan graceful shutdown: stop worker + mikrosync bersih saat SIGINT/SIGTERM.
 	addr := ":" + cfg.AppPort
-	fmt.Printf("╔════════════════════════════════════════╗\n")
-	fmt.Printf("║   ONOBILL Server                       ║\n")
-	fmt.Printf("║   Listening: http://localhost%s      ║\n", addr)
-	fmt.Printf("║   Login: admin@onobill.local           ║\n")
-	fmt.Printf("║   Pass:  admin123                      ║\n")
-	fmt.Printf("╚════════════════════════════════════════╝\n")
-	log.Fatal(http.ListenAndServe(addr, mux))
+	server := &http.Server{Addr: addr, Handler: mux}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		fmt.Printf("╔════════════════════════════════════════╗\n")
+		fmt.Printf("║   ONOBILL Server                       ║\n")
+		fmt.Printf("║   Listening: http://localhost%s      ║\n", addr)
+		fmt.Printf("║   Login: admin@onobill.local           ║\n")
+		fmt.Printf("║   Pass:  admin123                      ║\n")
+		fmt.Printf("╚════════════════════════════════════════╝\n")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("[server] shutdown diterima, membersihkan...")
+	stop()
+	syncCancel()
+	workerCancel()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[server] graceful shutdown error: %v", err)
+	}
+	log.Println("[server] berhenti bersih.")
 }

@@ -2,9 +2,12 @@ package http
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"onobill/internal/domain"
 	"onobill/internal/repository"
@@ -17,6 +20,7 @@ import (
 	"onobill/internal/service/notify"
 	"onobill/internal/service/payment"
 	"onobill/internal/service/pkg"
+	"onobill/internal/service/portal"
 	"onobill/internal/service/provisioning"
 	"onobill/internal/service/router"
 	"onobill/internal/service/subscription"
@@ -42,6 +46,83 @@ type Handler struct {
 	BaseURL      string
 	Subscription *subscription.Service
 	MikroSync    *mikrosync.Engine // auto-sync ke MikroTik (PPPoE/hotspot/voucher)
+	Portal       *portal.Service   // portal self-service pelanggan
+
+	loginMu      sync.Mutex
+	loginAttempt map[string]*loginAttempt
+}
+
+// loginAttempt melacak percobaan login gagal per kunci (email|ip).
+type loginAttempt struct {
+	count   int
+	blocked time.Time
+}
+
+const (
+	loginMaxAttempts = 5                // gagal 5x -> blokir
+	loginBlockFor    = 15 * time.Minute // durasi blokir
+)
+
+// allowLogin memeriksa apakah kunci masih boleh mencoba login (rate-limit anti brute-force).
+func (h *Handler) allowLogin(key string) bool {
+	h.loginMu.Lock()
+	defer h.loginMu.Unlock()
+	if h.loginAttempt == nil {
+		h.loginAttempt = map[string]*loginAttempt{}
+	}
+	a, ok := h.loginAttempt[key]
+	if !ok {
+		return true
+	}
+	if time.Now().Before(a.blocked) {
+		return false
+	}
+	if a.count >= loginMaxAttempts {
+		// Blokir sudah lewat -> reset.
+		delete(h.loginAttempt, key)
+		return true
+	}
+	return true
+}
+
+// recordLoginFail menambah hitungan gagal; blokir bila melebihi batas.
+func (h *Handler) recordLoginFail(key string) {
+	h.loginMu.Lock()
+	defer h.loginMu.Unlock()
+	if h.loginAttempt == nil {
+		h.loginAttempt = map[string]*loginAttempt{}
+	}
+	a := h.loginAttempt[key]
+	if a == nil {
+		a = &loginAttempt{}
+		h.loginAttempt[key] = a
+	}
+	a.count++
+	if a.count >= loginMaxAttempts {
+		a.blocked = time.Now().Add(loginBlockFor)
+	}
+}
+
+// resetLogin menghapus hitungan gagal setelah login sukses.
+func (h *Handler) resetLogin(key string) {
+	h.loginMu.Lock()
+	defer h.loginMu.Unlock()
+	delete(h.loginAttempt, key)
+}
+
+// clientIP mengambil IP klien (hormati X-Forwarded-For di belakang proxy).
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.Index(xff, ","); idx > 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 func NewHandler(
@@ -193,9 +274,19 @@ func (h *Handler) LoginSubmit(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	email := r.FormValue("email")
 	password := r.FormValue("password")
+	key := email + "|" + clientIP(r)
+
+	if !h.allowLogin(key) {
+		render(w, "login", map[string]interface{}{
+			"Title": "Login - ONOBILL",
+			"Error": "Terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.",
+		})
+		return
+	}
 
 	token, user, err := h.Auth.Login(email, password)
 	if err != nil {
+		h.recordLoginFail(key)
 		render(w, "login", map[string]interface{}{
 			"Title": "Login - ONOBILL",
 			"Error": "Email atau password salah",
@@ -203,6 +294,7 @@ func (h *Handler) LoginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.resetLogin(key)
 	h.Auth.SetAuthCookie(w, token)
 	_ = user
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)

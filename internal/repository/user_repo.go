@@ -297,6 +297,14 @@ func (r *Repository) ListInvoices(tenantID uint, status string) ([]domain.Invoic
 	return list, err
 }
 
+// ListInvoicesByCustomer mengambil semua invoice milik satu pelanggan (untuk portal).
+func (r *Repository) ListInvoicesByCustomer(tenantID, customerID uint) ([]domain.Invoice, error) {
+	var list []domain.Invoice
+	err := r.db.Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
+		Order("created_at DESC").Find(&list).Error
+	return list, err
+}
+
 func (r *Repository) UpdateInvoice(inv *domain.Invoice) error {
 	return r.db.Save(inv).Error
 }
@@ -320,6 +328,16 @@ func (r *Repository) CountInvoices(tenantID uint, status string) (int64, error) 
 		q = q.Where("status = ?", status)
 	}
 	err := q.Count(&n).Error
+	return n, err
+}
+
+// CountOpenInvoicesByCustomer menghitung invoice terbuka (unpaid/overdue) milik pelanggan.
+// Dipakai worker recurring agar tidak membuat invoice ganda.
+func (r *Repository) CountOpenInvoicesByCustomer(tenantID, customerID uint) (int64, error) {
+	var n int64
+	err := r.db.Model(&domain.Invoice{}).
+		Where("tenant_id = ? AND customer_id = ? AND status IN ?", tenantID, customerID, []string{"unpaid", "overdue"}).
+		Count(&n).Error
 	return n, err
 }
 

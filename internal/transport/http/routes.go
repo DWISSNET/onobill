@@ -33,8 +33,8 @@ func InitTemplates(pattern string) error {
 func render(w http.ResponseWriter, name string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	// Login page is standalone (no layout)
-	if name == "login" {
+	// Standalone pages (tanpa layout admin): login admin + portal pelanggan.
+	if name == "login" || name == "portal_login" || name == "portal_home" {
 		if err := templates.ExecuteTemplate(w, name+".html", data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -157,4 +157,10 @@ func SetupRoutes(mux *http.ServeMux, h *Handler) {
 
 	// Payment webhook (tanpa auth — divalidasi signature gateway)
 	mux.HandleFunc("POST /webhooks/payment/{gateway}", h.PaymentWebhook)
+
+	// Portal pelanggan self-service (login mandiri, lihat tagihan, bayar)
+	mux.HandleFunc("GET /portal/login", h.PortalLoginPage)
+	mux.HandleFunc("POST /portal/login", h.PortalLoginSubmit)
+	mux.HandleFunc("GET /portal/logout", h.PortalLogout)
+	mux.HandleFunc("GET /portal", h.PortalHome)
 }

@@ -165,6 +165,64 @@ func (s *Service) GetInvoice(tenantID, id uint) (*domain.Invoice, error) {
 	return s.repo.GetInvoiceByID(tenantID, id)
 }
 
+// GenerateRecurringInvoices membuat invoice baru untuk setiap pelanggan aktif
+// yang belum punya invoice unpaid/overdue. Dipanggil periodik oleh worker.
+// Idempoten: pelanggan yang sudah punya tagihan terbuka tidak dibuatkan lagi.
+func (s *Service) GenerateRecurringInvoices(tenantID uint) (int, error) {
+	customers, err := s.repo.ListCustomers(tenantID, "active")
+	if err != nil {
+		return 0, err
+	}
+	created := 0
+	for _, cust := range customers {
+		if cust.PackageID == nil {
+			continue
+		}
+		// Lewati bila pelanggan masih punya invoice terbuka (unpaid/overdue).
+		open, err := s.repo.CountOpenInvoicesByCustomer(tenantID, cust.ID)
+		if err != nil {
+			continue
+		}
+		if open > 0 {
+			continue
+		}
+		// Hanya buat bila due date sudah lewat / tinggal <= 3 hari (periode baru).
+		if cust.DueDate != nil {
+			until := time.Until(*cust.DueDate)
+			if until > 3*24*time.Hour {
+				continue
+			}
+		}
+		if _, err := s.CreateInvoiceFromPackage(tenantID, cust.ID); err != nil {
+			continue
+		}
+		created++
+	}
+	return created, nil
+}
+
+// ListDueSoon mengembalikan invoice "unpaid" yang jatuh tempo dalam daysLeft hari.
+// Dipakai worker reminder H-3.
+func (s *Service) ListDueSoon(tenantID uint, daysLeft int) ([]domain.Invoice, error) {
+	invoices, err := s.repo.ListInvoices(tenantID, "unpaid")
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	var out []domain.Invoice
+	for _, inv := range invoices {
+		if inv.Status != "unpaid" {
+			continue
+		}
+		until := inv.DueAt.Sub(now)
+		// Tepat di jendela [daysLeft-1, daysLeft] hari ke depan.
+		if until >= time.Duration(daysLeft-1)*24*time.Hour && until < time.Duration(daysLeft)*24*time.Hour {
+			out = append(out, inv)
+		}
+	}
+	return out, nil
+}
+
 // ListInvoices lists invoices with optional status filter
 func (s *Service) ListInvoices(tenantID uint, status string) ([]domain.Invoice, error) {
 	return s.repo.ListInvoices(tenantID, status)
