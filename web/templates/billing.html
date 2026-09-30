@@ -1,0 +1,146 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>Billing & Invoice</h1>
+    <button class="btn btn-primary" onclick="openModal('modalAdd')">+ Buat Invoice</button>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card green">
+        <div class="stat-label">Total Pendapatan</div>
+        <div class="stat-value">Rp {{printf "%.0f" .Stats.total_revenue}}</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Belum Bayar</div>
+        <div class="stat-value">{{.Stats.unpaid_count}}</div>
+    </div>
+    <div class="stat-card red">
+        <div class="stat-label">Jatuh Tempo</div>
+        <div class="stat-value">{{.Stats.overdue_count}}</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-label">Lunas</div>
+        <div class="stat-value">{{.Stats.paid_count}}</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="flex gap-2 mb-4">
+        <a href="/billing" class="btn {{if eq .Status ""}}btn-primary{{else}}btn-warning{{end}} btn-sm">Semua</a>
+        <a href="/billing?status=unpaid" class="btn {{if eq .Status "unpaid"}}btn-primary{{else}}btn-warning{{end}} btn-sm">Belum Bayar</a>
+        <a href="/billing?status=paid" class="btn {{if eq .Status "paid"}}btn-primary{{else}}btn-warning{{end}} btn-sm">Lunas</a>
+        <a href="/billing?status=overdue" class="btn {{if eq .Status "overdue"}}btn-primary{{else}}btn-warning{{end}} btn-sm">Jatuh Tempo</a>
+    </div>
+
+    {{if .Invoices}}
+    <table>
+        <thead>
+            <tr>
+                <th>Nomor</th>
+                <th>Pelanggan</th>
+                <th>Total</th>
+                <th>Diterbitkan</th>
+                <th>Jatuh Tempo</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Invoices}}
+            <tr>
+                <td><strong>{{.Number}}</strong></td>
+                <td>{{if .Customer}}{{.Customer.Name}}{{else}}-{{end}}</td>
+                <td>Rp {{printf "%.0f" .Total}}</td>
+                <td>{{.IssuedAt.Format "02 Jan 06"}}</td>
+                <td>{{.DueAt.Format "02 Jan 2006"}}</td>
+                <td>
+                    {{if eq .Status "paid"}}<span class="badge badge-success">Lunas</span>
+                    {{else if eq .Status "overdue"}}<span class="badge badge-danger">Jatuh Tempo</span>
+                    {{else}}<span class="badge badge-warning">Belum Bayar</span>{{end}}
+                </td>
+                <td>
+                    {{if ne .Status "paid"}}
+                    <button class="btn btn-sm btn-success" onclick="openPay({{.ID}}, '{{.Number}}', {{.Total}})">Bayar</button>
+                    {{else}}
+                    <span class="text-muted">{{if .PaidAt}}{{.PaidAt.Format "02 Jan 06 15:04"}}{{end}}</span>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada invoice.</p>
+    {{end}}
+</div>
+
+<!-- Modal Create Invoice -->
+<div class="modal" id="modalAdd">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Buat Invoice Baru</div>
+            <button class="modal-close" onclick="closeModal('modalAdd')">&times;</button>
+        </div>
+        <form method="POST" action="/billing/invoices">
+            <div class="form-group">
+                <label class="form-label">Pelanggan *</label>
+                <select name="customer_id" class="form-select" required>
+                    <option value="">- Pilih Pelanggan -</option>
+                    {{range .Customers}}<option value="{{.ID}}">{{.Code}} - {{.Name}}</option>{{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Jumlah (Rp) *</label>
+                <input type="number" name="amount" class="form-input" min="0" step="1000" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Jatuh Tempo (hari)</label>
+                <input type="number" name="due_days" class="form-input" value="7" min="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Catatan</label>
+                <textarea name="notes" class="form-input" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Buat Invoice</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Pay -->
+<div class="modal" id="modalPay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Bayar Invoice <span id="p_number"></span></div>
+            <button class="modal-close" onclick="closeModal('modalPay')">&times;</button>
+        </div>
+        <form method="POST" id="formPay">
+            <div class="form-group">
+                <label class="form-label">Jumlah Bayar (Rp)</label>
+                <input type="number" name="amount" id="p_amount" class="form-input" min="0" step="1000" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Metode Pembayaran</label>
+                <select name="method" class="form-select">
+                    <option value="cash">Tunai</option>
+                    <option value="transfer">Transfer Bank</option>
+                    <option value="qris">QRIS</option>
+                    <option value="gateway">Payment Gateway</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Referensi / No. Bukti</label>
+                <input type="text" name="reference" class="form-input">
+            </div>
+            <button type="submit" class="btn btn-success" style="width:100%">Konfirmasi Pembayaran</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openPay(id, number, total) {
+    document.getElementById('formPay').action = '/billing/invoices/' + id + '/pay';
+    document.getElementById('p_number').textContent = number;
+    document.getElementById('p_amount').value = total;
+    openModal('modalPay');
+}
+</script>
+{{end}}

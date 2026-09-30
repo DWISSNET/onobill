@@ -1,0 +1,79 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>📣 Notifikasi Platform</h1>
+    <a href="/superadmin" class="btn btn-secondary">← Superadmin</a>
+</div>
+
+{{if .Success}}<div style="background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:12px;border-radius:8px;margin-bottom:14px">✅ {{.Success}}</div>{{end}}
+{{if .Error}}<div style="background:#fef2f2;border:1px solid #ef4444;color:#991b1b;padding:12px;border-radius:8px;margin-bottom:14px">❌ {{.Error}}</div>{{end}}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <!-- WA GATEWAY -->
+    <div class="card">
+        <h3 style="margin-top:0">💬 WhatsApp Gateway</h3>
+        <form method="POST" action="/superadmin/notify/settings">
+            <div class="form-group" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" name="wa_enabled" id="wa_enabled" {{if .St.WAEnabled}}checked{{end}}>
+                <label for="wa_enabled" style="margin:0"><strong>Aktifkan WA Gateway</strong></label>
+            </div>
+            <div class="form-group"><label class="form-label">Endpoint API</label>
+                <input type="text" name="wa_endpoint" class="form-input" value="{{.St.WAEndpoint}}" placeholder="https://api.fonnte.com/send"></div>
+            <div class="form-group"><label class="form-label">Token</label>
+                <input type="text" name="wa_token" class="form-input" value="{{.St.WAToken}}" placeholder="token fonnte / gateway Anda"></div>
+
+            <hr style="margin:16px 0;border:none;border-top:1px solid #eee">
+            <h4 style="margin-top:0">📧 Email (SMTP)</h4>
+            <div class="form-group" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" name="smtp_enabled" id="smtp_enabled" {{if .St.SMTPEnabled}}checked{{end}}>
+                <label for="smtp_enabled" style="margin:0"><strong>Aktifkan Email</strong></label>
+            </div>
+            <div class="form-group"><label class="form-label">SMTP Host</label>
+                <input type="text" name="smtp_host" class="form-input" value="{{.St.SMTPHost}}" placeholder="smtp.gmail.com"></div>
+            <div class="form-group"><label class="form-label">SMTP Port</label>
+                <input type="number" name="smtp_port" class="form-input" value="{{if .St.SMTPPort}}{{.St.SMTPPort}}{{else}}587{{end}}"></div>
+            <div class="form-group"><label class="form-label">SMTP User</label>
+                <input type="text" name="smtp_user" class="form-input" value="{{.St.SMTPUser}}" placeholder="email@gmail.com"></div>
+            <div class="form-group"><label class="form-label">SMTP Password</label>
+                <input type="password" name="smtp_pass" class="form-input" value="{{.St.SMTPPass}}" placeholder="app password"></div>
+            <div class="form-group"><label class="form-label">Email Pengirim (From)</label>
+                <input type="text" name="smtp_from" class="form-input" value="{{.St.SMTPFrom}}" placeholder="ONOBILL <no-reply@onobill.id>"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">💾 Simpan Pengaturan</button>
+        </form>
+    </div>
+
+    <div>
+        <!-- TES KIRIM -->
+        <div class="card" style="margin-bottom:16px">
+            <h3 style="margin-top:0">🧪 Tes Kirim</h3>
+            <form method="POST" action="/superadmin/notify/test-wa" style="display:flex;gap:8px;margin-bottom:10px">
+                <input type="text" name="target" class="form-input" placeholder="No. WA (62812...)" style="flex:1">
+                <button class="btn btn-secondary">Tes WA</button>
+            </form>
+            <form method="POST" action="/superadmin/notify/test-email" style="display:flex;gap:8px">
+                <input type="email" name="target" class="form-input" placeholder="email@tujuan.com" style="flex:1">
+                <button class="btn btn-secondary">Tes Email</button>
+            </form>
+        </div>
+
+        <!-- BROADCAST -->
+        <div class="card" style="border:1px solid #7c3aed">
+            <h3 style="margin-top:0">📢 Broadcast ke Semua Tenant</h3>
+            <p class="text-muted" style="font-size:13px;margin-bottom:12px">
+                Terkirim ke <strong>{{.TenantCount}} admin tenant</strong>. Cocok untuk pengumuman, maintenance, promo.
+            </p>
+            <form method="POST" action="/superadmin/notify/broadcast" onsubmit="return confirm('Kirim broadcast ke SEMUA tenant?')">
+                <div class="form-group"><label class="form-label">Subjek (untuk email)</label>
+                    <input type="text" name="subject" class="form-input" placeholder="Pengumuman ONOBILL"></div>
+                <div class="form-group"><label class="form-label">Pesan *</label>
+                    <textarea name="message" class="form-input" rows="5" placeholder="Tulis pengumuman di sini..." required></textarea></div>
+                <div style="display:flex;gap:20px;margin-bottom:12px">
+                    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="via_wa" checked> 💬 via WA</label>
+                    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="via_email" checked> 📧 via Email</label>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%">📢 Kirim Broadcast</button>
+            </form>
+        </div>
+    </div>
+</div>
+{{end}}

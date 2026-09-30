@@ -1,0 +1,113 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+        .logo { padding: 0 24px 20px; font-size: 24px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+        .logo span { color: #4ade80; }
+        .nav { list-style: none; }
+        .nav-item { margin: 2px 0; }
+        .nav-link { display: flex; align-items: center; padding: 12px 24px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.2s; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .nav-link.active { background: rgba(74, 222, 128, 0.15); color: #4ade80; border-left: 3px solid #4ade80; }
+        .nav-section { padding: 18px 24px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); text-transform: uppercase; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 10px; }
+        .nav-icon { margin-right: 12px; font-size: 18px; }
+        .main { margin-left: 240px; flex: 1; padding: 24px; }
+        .topbar { background: #fff; padding: 16px 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .topbar h1 { font-size: 24px; font-weight: 600; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid; }
+        .stat-card.green { border-color: #4ade80; }
+        .stat-card.blue { border-color: #3b82f6; }
+        .stat-card.orange { border-color: #f59e0b; }
+        .stat-card.red { border-color: #ef4444; }
+        .stat-label { font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; font-size: 13px; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: #f9fafb; }
+        .btn { display: inline-block; padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #4ade80; color: #fff; }
+        .btn-success:hover { background: #22c55e; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: #f59e0b; color: #fff; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+        .form-input, .form-select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-input:focus, .form-select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .badge-secondary { background: #e5e7eb; color: #374151; }
+        .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #4ade80; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #fff; border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 20px; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+        .gap-2 { gap: 8px; }
+        .mb-4 { margin-bottom: 16px; }
+        .text-right { text-align: right; }
+        .text-muted { color: #6b7280; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">ONO<span>BILL</span></div>
+            <ul class="nav">
+                <li class="nav-item"><a href="/dashboard" class="nav-link {{if eq .Page "dashboard"}}active{{end}}"><span class="nav-icon">📊</span>Dashboard</a></li>
+                <li class="nav-item"><a href="/customers" class="nav-link {{if eq .Page "customer"}}active{{end}}"><span class="nav-icon">👥</span>Pelanggan</a></li>
+                <li class="nav-item"><a href="/billing" class="nav-link {{if eq .Page "billing"}}active{{end}}"><span class="nav-icon">💰</span>Billing</a></li>
+                <li class="nav-item"><a href="/packages" class="nav-link {{if eq .Page "package"}}active{{end}}"><span class="nav-icon">📦</span>Paket</a></li>
+                <li class="nav-item"><a href="/routers" class="nav-link {{if eq .Page "router"}}active{{end}}"><span class="nav-icon">📡</span>Router</a></li>
+                <li class="nav-item"><a href="/vpn" class="nav-link {{if eq .Page "vpn"}}active{{end}}"><span class="nav-icon">🔒</span>VPN</a></li>
+                <li class="nav-item"><a href="/vouchers" class="nav-link {{if eq .Page "voucher"}}active{{end}}"><span class="nav-icon">🎫</span>Voucher</a></li>
+                <li class="nav-item"><a href="/portfwd" class="nav-link {{if eq .Page "portfwd"}}active{{end}}"><span class="nav-icon">🔀</span>Port Forward</a></li>
+                <li class="nav-section">AREA CEO</li>
+                <li class="nav-item"><a href="/tenants" class="nav-link {{if eq .Page "tenant"}}active{{end}}"><span class="nav-icon">🏢</span>Tenant</a></li>
+                <li class="nav-item"><a href="/superadmin" class="nav-link {{if eq .Page "superadmin"}}active{{end}}"><span class="nav-icon">👑</span>Superadmin</a></li>
+                <li class="nav-item"><a href="/superadmin/chr" class="nav-link {{if eq .Page "chr"}}active{{end}}"><span class="nav-icon">🖧</span>CHR</a></li>
+                <li class="nav-item"><a href="/superadmin/notify" class="nav-link {{if eq .Page "notify"}}active{{end}}"><span class="nav-icon">📣</span>Notifikasi</a></li>
+                <li class="nav-item"><a href="/superadmin/payment" class="nav-link {{if eq .Page "payment"}}active{{end}}"><span class="nav-icon">💳</span>Payment</a></li>
+                <li class="nav-section">AKUN</li>
+                <li class="nav-item"><a href="/settings/password" class="nav-link {{if eq .Page "change_password"}}active{{end}}"><span class="nav-icon">🔑</span>Ganti Password</a></li>
+                <li class="nav-item" style="margin-top: 10px;"><a href="/logout" class="nav-link"><span class="nav-icon">🚪</span>Logout</a></li>
+            </ul>
+        </aside>
+        <main class="main">
+            {{template "content" .}}
+        </main>
+    </div>
+    <script>
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        document.querySelectorAll('.modal').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) m.classList.remove('active'); });
+        });
+    </script>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,213 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>Paket / Profile</h1>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Tambah Paket</button>
+</div>
+
+{{if .Flash}}
+<div class="alert alert-success">{{.Flash}}</div>
+{{end}}
+
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card"><div class="stat-value">{{.Stats.pppoe}}</div><div class="stat-label">Paket PPPoE</div></div>
+    <div class="stat-card"><div class="stat-value">{{.Stats.hotspot}}</div><div class="stat-label">Paket Hotspot</div></div>
+    <div class="stat-card"><div class="stat-value">{{.Stats.active}}</div><div class="stat-label">Paket Aktif</div></div>
+</div>
+
+<div class="card">
+    <div class="filter-bar" style="margin-bottom: 16px;">
+        <a href="/packages" class="btn {{if not .FilterType}}btn-primary{{else}}btn-secondary{{end}}">Semua</a>
+        <a href="/packages?type=pppoe" class="btn {{if eq .FilterType "pppoe"}}btn-primary{{else}}btn-secondary{{end}}">PPPoE</a>
+        <a href="/packages?type=hotspot" class="btn {{if eq .FilterType "hotspot"}}btn-primary{{else}}btn-secondary{{end}}">Hotspot</a>
+    </div>
+
+    {{if .Packages}}
+    <table>
+        <thead>
+            <tr>
+                <th>Nama Paket</th>
+                <th>Tipe</th>
+                <th>Harga</th>
+                <th>Speed (D/U)</th>
+                <th>Profile MikroTik</th>
+                <th>Masa Aktif</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Packages}}
+            <tr>
+                <td><strong>{{.Name}}</strong>{{if .Description}}<br><small style="color:#6b7280;">{{.Description}}</small>{{end}}</td>
+                <td>{{if eq .ServiceType "pppoe"}}<span class="badge badge-info">PPPoE</span>{{else}}<span class="badge badge-warning">Hotspot</span>{{end}}</td>
+                <td>Rp {{printf "%.0f" .Price}}</td>
+                <td>{{.SpeedDown}}/{{.SpeedUp}} Mbps</td>
+                <td>{{if .ProfileName}}{{.ProfileName}}{{else}}-{{end}}</td>
+                <td>{{.ValidityDays}} hari</td>
+                <td>{{if .IsActive}}<span class="badge badge-success">Aktif</span>{{else}}<span class="badge badge-secondary">Nonaktif</span>{{end}}</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick='editPackage({{.ID}}, {{printf "%q" .Name}}, "{{.ServiceType}}", {{printf "%q" .Description}}, {{printf "%.0f" .Price}}, {{.SpeedDown}}, {{.SpeedUp}}, {{.QuotaGB}}, {{.ValidityDays}}, {{printf "%q" .ProfileName}}, {{printf "%q" .AddressList}}, {{printf "%q" .ParentQueue}}, {{printf "%q" .PoolName}}, {{.IsActive}})'>Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deletePackage({{.ID}})">Hapus</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p style="color:#6b7280; text-align:center; padding:24px 0;">Belum ada paket. Klik <strong>+ Tambah Paket</strong> untuk membuat profile PPPoE atau Hotspot pertama Anda.</p>
+    {{end}}
+</div>
+
+<!-- Modal Tambah -->
+<div class="modal" id="modalAdd">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Tambah Paket / Profile</h3>
+            <button class="modal-close" onclick="closeModal('modalAdd')">&times;</button>
+        </div>
+        <form method="POST" action="/packages">
+            {{template "package_form" .}}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modalAdd')">Batal</button>
+                <button type="submit" class="btn btn-primary">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit -->
+<div class="modal" id="modalEdit">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Paket / Profile</h3>
+            <button class="modal-close" onclick="closeModal('modalEdit')">&times;</button>
+        </div>
+        <form method="POST" id="formEdit">
+            {{template "package_form" .}}
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modalEdit')">Batal</button>
+                <button type="submit" class="btn btn-primary">Perbarui</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddModal() {
+    document.querySelector('#modalAdd form').reset();
+    document.querySelector('#modalAdd [name=is_active]').checked = true;
+    toggleTypeFields(document.querySelector('#modalAdd [name=service_type]'));
+    openModal('modalAdd');
+}
+
+function editPackage(id, name, stype, desc, price, sd, su, quota, validity, profile, addrList, parentQ, pool, active) {
+    const f = document.getElementById('formEdit');
+    f.action = '/packages/' + id + '/update';
+    f.querySelector('[name=name]').value = name;
+    f.querySelector('[name=service_type]').value = stype;
+    f.querySelector('[name=description]').value = desc;
+    f.querySelector('[name=price]').value = price;
+    f.querySelector('[name=speed_down]').value = sd;
+    f.querySelector('[name=speed_up]').value = su;
+    f.querySelector('[name=quota_gb]').value = quota;
+    f.querySelector('[name=validity_days]').value = validity;
+    f.querySelector('[name=profile_name]').value = profile;
+    f.querySelector('[name=address_list]').value = addrList;
+    f.querySelector('[name=parent_queue]').value = parentQ;
+    f.querySelector('[name=pool_name]').value = pool;
+    f.querySelector('[name=is_active]').checked = active;
+    toggleTypeFields(f.querySelector('[name=service_type]'));
+    openModal('modalEdit');
+}
+
+function toggleTypeFields(sel) {
+    const form = sel.closest('form');
+    const isHotspot = sel.value === 'hotspot';
+    form.querySelectorAll('.pppoe-only').forEach(el => el.style.display = isHotspot ? 'none' : '');
+    form.querySelectorAll('.hotspot-only').forEach(el => el.style.display = isHotspot ? '' : 'none');
+}
+
+document.querySelectorAll('[name=service_type]').forEach(sel => {
+    sel.addEventListener('change', () => toggleTypeFields(sel));
+});
+
+async function deletePackage(id) {
+    if (!confirm('Hapus paket ini? Pelanggan yang memakai paket ini tidak akan ikut terhapus.')) return;
+    const res = await fetch('/packages/' + id + '/delete', { method: 'POST' });
+    if (res.ok) location.reload();
+    else alert('Gagal menghapus paket');
+}
+</script>
+{{end}}
+
+{{define "package_form"}}
+    <style>
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+        .form-group input[type=text], .form-group input[type=number], .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; }
+    </style>
+    <div class="form-group">
+        <label>Nama Paket *</label>
+        <input type="text" name="name" required placeholder="cth: Paket 10 Mbps Rumahan">
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Tipe Layanan *</label>
+            <select name="service_type" required>
+                <option value="pppoe">PPPoE</option>
+                <option value="hotspot">Hotspot</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Harga (Rp) *</label>
+            <input type="number" name="price" min="0" step="1000" required placeholder="150000">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Speed Download (Mbps)</label>
+            <input type="number" name="speed_down" min="0" value="10">
+        </div>
+        <div class="form-group">
+            <label>Speed Upload (Mbps)</label>
+            <input type="number" name="speed_up" min="0" value="10">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group hotspot-only" style="display:none;">
+            <label>Kuota (GB, 0 = unlimited)</label>
+            <input type="number" name="quota_gb" min="0" value="0">
+        </div>
+        <div class="form-group">
+            <label>Masa Aktif (hari)</label>
+            <input type="number" name="validity_days" min="1" value="30">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Nama Profile di MikroTik</label>
+        <input type="text" name="profile_name" placeholder="cth: pppoe-10mbps / hs-5k">
+    </div>
+    <div class="form-group pppoe-only">
+        <label>Address List (isolir)</label>
+        <input type="text" name="address_list" placeholder="cth: ISOLIR">
+    </div>
+    <div class="form-row">
+        <div class="form-group pppoe-only">
+            <label>Parent Queue</label>
+            <input type="text" name="parent_queue" placeholder="opsional">
+        </div>
+        <div class="form-group pppoe-only">
+            <label>IP Pool Name</label>
+            <input type="text" name="pool_name" placeholder="opsional">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Deskripsi</label>
+        <textarea name="description" rows="2" placeholder="Keterangan paket (opsional)"></textarea>
+    </div>
+    <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="is_active" checked style="width:auto;"> Paket Aktif (dapat dipilih pelanggan)
+        </label>
+    </div>
+{{end}}

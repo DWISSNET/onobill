@@ -1,0 +1,85 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>🖧 CHR — Hub Komunikasi</h1>
+    <a href="/superadmin" class="btn btn-secondary">← Superadmin</a>
+</div>
+
+{{if .Success}}<div style="background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:12px;border-radius:8px;margin-bottom:14px">✅ Berhasil ({{.Success}})</div>{{end}}
+{{if .Error}}<div style="background:#fef2f2;border:1px solid #ef4444;color:#991b1b;padding:12px;border-radius:8px;margin-bottom:14px">❌ {{.Error}}</div>{{end}}
+
+<div class="card" style="margin-bottom:16px;background:#eff6ff;border:1px solid #3b82f6">
+    <strong>Apa itu CHR?</strong> CHR (Cloud Hosted Router) adalah pusat jalur komunikasi <strong>L2TP</strong> antara ONOBILL dan router tenant.
+    Semua router tenant "menelepon" (dial L2TP) ke CHR → ONOBILL menghubungi balik router lewat tunnel ini.
+    IP CHR di sini otomatis dipakai saat generate <strong>script tambah router</strong>.
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start">
+    <div class="card">
+        <h3 style="margin-top:0">Daftar CHR</h3>
+        {{if .CHRs}}
+        <table>
+            <thead><tr><th>CHR</th><th>Status</th><th>Uptime</th><th>Tunnel Konek</th><th>Aksi</th></tr></thead>
+            <tbody>
+                {{range .CHRs}}
+                <tr>
+                    <td>
+                        <strong>{{.Name}}</strong><br>
+                        <small class="text-muted"><code>{{.Host}}:{{.APIPort}}</code></small><br>
+                        <small class="text-muted">{{if .Status.Identity}}🖥 {{.Status.Identity}} · {{end}}{{if .Status.Version}}v{{.Status.Version}}{{end}}</small>
+                    </td>
+                    <td>
+                        {{if not .IsActive}}
+                            <span class="badge badge-danger">nonaktif</span>
+                        {{else if .Status.Online}}
+                            <span class="badge badge-success">● online</span>
+                        {{else}}
+                            <span class="badge badge-danger">○ offline</span>
+                            {{if .Status.Error}}<br><small style="color:#ef4444">{{.Status.Error}}</small>{{end}}
+                        {{end}}
+                    </td>
+                    <td>
+                        {{if .Status.Uptime}}<strong>{{.Status.Uptime}}</strong>
+                        {{else}}<span class="text-muted">-</span>{{end}}
+                    </td>
+                    <td>
+                        {{if .Status.Online}}
+                            <span style="font-size:20px;font-weight:700;color:#2563eb">{{.Status.ActiveTunnel}}</span>
+                            <span class="text-muted">/ {{.Status.TotalTunnel}}</span><br>
+                            <small class="text-muted">router konek</small>
+                        {{else}}
+                            <span class="text-muted">-</span>
+                        {{end}}
+                    </td>
+                    <td>
+                        <form method="POST" action="/superadmin/chr/{{.ID}}/toggle" style="display:inline">
+                            <button class="btn btn-secondary btn-sm">{{if .IsActive}}Nonaktif{{else}}Aktif{{end}}</button>
+                        </form>
+                        <form method="POST" action="/superadmin/chr/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Hapus CHR ini?')">
+                            <button class="btn btn-danger btn-sm">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p class="text-muted">Belum ada CHR. Tambahkan di form sebelah.</p>
+        {{end}}
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0">+ Tambah CHR</h3>
+        <form method="POST" action="/superadmin/chr">
+            <div class="form-group"><label class="form-label">Nama *</label><input type="text" name="name" class="form-input" placeholder="CHR-Jakarta-1" required></div>
+            <div class="form-group"><label class="form-label">Host / IP *</label><input type="text" name="host" class="form-input" placeholder="103.x.x.x" required></div>
+            <div class="form-group"><label class="form-label">Port API</label><input type="number" name="api_port" class="form-input" value="8728"></div>
+            <div class="form-group"><label class="form-label">Username API</label><input type="text" name="username" class="form-input" placeholder="onobill"></div>
+            <div class="form-group"><label class="form-label">Password API</label><input type="password" name="password" class="form-input"></div>
+            <div class="form-group"><label class="form-label">L2TP IP Range</label><input type="text" name="l2tp_range" class="form-input" placeholder="10.10.0.0/24"></div>
+            <div class="form-group"><label class="form-label">L2TP/IPsec Secret</label><input type="text" name="secret" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Catatan</label><input type="text" name="note" class="form-input"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Simpan CHR</button>
+        </form>
+    </div>
+</div>
+{{end}}

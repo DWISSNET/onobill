@@ -1,0 +1,114 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>Voucher Hotspot</h1>
+    <button class="btn btn-primary" onclick="openModal('modalGenerate')">+ Generate Batch</button>
+</div>
+
+{{if .Stats}}
+<div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+    <div class="card" style="flex:1; min-width:140px; text-align:center;">
+        <div style="font-size:28px; font-weight:700;">{{index .Stats "total"}}</div>
+        <div class="text-muted">Total</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px; text-align:center;">
+        <div style="font-size:28px; font-weight:700; color:#22c55e;">{{index .Stats "unused"}}</div>
+        <div class="text-muted">Belum Dipakai</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px; text-align:center;">
+        <div style="font-size:28px; font-weight:700; color:#3b82f6;">{{index .Stats "active"}}</div>
+        <div class="text-muted">Aktif</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px; text-align:center;">
+        <div style="font-size:28px; font-weight:700; color:#ef4444;">{{index .Stats "expired"}}</div>
+        <div class="text-muted">Kedaluwarsa</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px; text-align:center;">
+        <div style="font-size:28px; font-weight:700; color:#6b7280;">{{index .Stats "disabled"}}</div>
+        <div class="text-muted">Nonaktif</div>
+    </div>
+</div>
+{{end}}
+
+<div class="card">
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <a href="/vouchers" class="btn {{if not .Status}}btn-primary{{end}}">Semua</a>
+        <a href="/vouchers?status=unused" class="btn {{if eq .Status "unused"}}btn-primary{{end}}">Belum Dipakai</a>
+        <a href="/vouchers?status=active" class="btn {{if eq .Status "active"}}btn-primary{{end}}">Aktif</a>
+        <a href="/vouchers?status=expired" class="btn {{if eq .Status "expired"}}btn-primary{{end}}">Kedaluwarsa</a>
+        <a href="/vouchers?status=disabled" class="btn {{if eq .Status "disabled"}}btn-primary{{end}}">Nonaktif</a>
+    </div>
+
+    {{if .Vouchers}}
+    <table>
+        <thead>
+            <tr>
+                <th>Kode</th>
+                <th>Profile</th>
+                <th>Status</th>
+                <th>Dipakai Pada</th>
+                <th>Kedaluwarsa</th>
+                <th>Dibuat</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Vouchers}}
+            <tr>
+                <td><code style="font-weight:600;">{{.Code}}</code></td>
+                <td>{{.Profile}}</td>
+                <td>
+                    {{if eq .Status "unused"}}<span class="badge badge-success">Belum Dipakai</span>
+                    {{else if eq .Status "active"}}<span class="badge badge-info">Aktif</span>
+                    {{else if eq .Status "expired"}}<span class="badge badge-danger">Kedaluwarsa</span>
+                    {{else}}<span class="badge">Nonaktif</span>{{end}}
+                </td>
+                <td>{{if .UsedAt}}{{.UsedAt.Format "02 Jan 2006 15:04"}}{{else}}-{{end}}</td>
+                <td>{{if .ExpiredAt}}{{.ExpiredAt.Format "02 Jan 2006"}}{{else}}-{{end}}</td>
+                <td>{{.CreatedAt.Format "02 Jan 2006 15:04"}}</td>
+                <td style="white-space:nowrap;">
+                    {{if eq .Status "unused"}}
+                    <form method="POST" action="/vouchers/{{.ID}}/disable" style="display:inline;">
+                        <button type="submit" class="btn" style="padding:4px 10px; font-size:12px;">Nonaktifkan</button>
+                    </form>
+                    <form method="POST" action="/vouchers/{{.ID}}/delete" style="display:inline;" onsubmit="return confirm('Hapus voucher {{.Code}}?');">
+                        <button type="submit" class="btn btn-danger" style="padding:4px 10px; font-size:12px;">Hapus</button>
+                    </form>
+                    {{else if eq .Status "disabled"}}
+                    <form method="POST" action="/vouchers/{{.ID}}/reset" style="display:inline;">
+                        <button type="submit" class="btn" style="padding:4px 10px; font-size:12px;">Aktifkan Lagi</button>
+                    </form>
+                    <form method="POST" action="/vouchers/{{.ID}}/delete" style="display:inline;" onsubmit="return confirm('Hapus voucher {{.Code}}?');">
+                        <button type="submit" class="btn btn-danger" style="padding:4px 10px; font-size:12px;">Hapus</button>
+                    </form>
+                    {{else}}-{{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada voucher. Klik "Generate Batch" untuk membuat voucher hotspot.</p>
+    {{end}}
+</div>
+
+<!-- Modal Generate Batch -->
+<div class="modal" id="modalGenerate">
+    <div class="modal-content">
+        <h2>Generate Batch Voucher</h2>
+        <form method="POST" action="/vouchers/generate">
+            <div class="form-group"><label>Jumlah Voucher</label><input type="number" name="count" min="1" max="1000" value="10" required></div>
+            <div class="form-group"><label>Prefix Kode (opsional)</label><input name="prefix" placeholder="WIFI" maxlength="8"></div>
+            <div class="form-group"><label>Panjang Kode Acak</label><input type="number" name="code_length" min="4" max="20" value="6" required></div>
+            <div class="form-group"><label>Profile Hotspot (MikroTik)</label><input name="profile" placeholder="default / 1jam / 1hari" required></div>
+            <div class="form-group"><label>Router (opsional)</label>
+                <select name="router_id">
+                    <option value="">-- Semua Router --</option>
+                    {{range .Routers}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+                </select>
+            </div>
+            <div class="form-group"><label>Masa Berlaku (hari, 0 = tanpa batas)</label><input type="number" name="validity_days" min="0" value="30"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Generate</button>
+        </form>
+    </div>
+</div>
+{{end}}

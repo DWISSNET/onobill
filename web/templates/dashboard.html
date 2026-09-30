@@ -1,0 +1,102 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>Dashboard</h1>
+    <div class="text-muted">Ringkasan sistem billing</div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-label">Total Pelanggan</div>
+        <div class="stat-value">{{.CustStats.total}}</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Aktif</div>
+        <div class="stat-value">{{.CustStats.active}}</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Terisolir</div>
+        <div class="stat-value">{{.CustStats.isolated}}</div>
+    </div>
+    <div class="stat-card red">
+        <div class="stat-label">Router</div>
+        <div class="stat-value">{{.RouterCount}}</div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card green">
+        <div class="stat-label">Total Pendapatan</div>
+        <div class="stat-value">Rp {{printf "%.0f" .BillStats.total_revenue}}</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Invoice Belum Bayar</div>
+        <div class="stat-value">{{.BillStats.unpaid_count}}</div>
+    </div>
+    <div class="stat-card red">
+        <div class="stat-label">Invoice Jatuh Tempo</div>
+        <div class="stat-value">{{.BillStats.overdue_count}}</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-label">Invoice Lunas</div>
+        <div class="stat-value">{{.BillStats.paid_count}}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 16px;">Invoice Terbaru Belum Bayar</h3>
+    {{if .RecentInvoices}}
+    <table>
+        <thead>
+            <tr>
+                <th>Nomor</th>
+                <th>Pelanggan</th>
+                <th>Total</th>
+                <th>Jatuh Tempo</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .RecentInvoices}}
+            <tr>
+                <td>{{.Number}}</td>
+                <td>{{if .Customer}}{{.Customer.Name}}{{else}}-{{end}}</td>
+                <td>Rp {{printf "%.0f" .Total}}</td>
+                <td>{{.DueAt.Format "02 Jan 2006"}}</td>
+                <td><span class="badge badge-warning">{{.Status}}</span></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Tidak ada invoice pending. Semua sudah lunas! 🎉</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 16px;">Pembayaran Terakhir</h3>
+    {{if .RecentPayments}}
+    <table>
+        <thead>
+            <tr>
+                <th>Invoice</th>
+                <th>Jumlah</th>
+                <th>Metode</th>
+                <th>Tanggal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .RecentPayments}}
+            <tr>
+                <td>{{if .Invoice}}{{.Invoice.Number}}{{else}}-{{end}}</td>
+                <td>Rp {{printf "%.0f" .Amount}}</td>
+                <td><span class="badge badge-info">{{.Method}}</span></td>
+                <td>{{.PaidAt.Format "02 Jan 2006 15:04"}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada pembayaran tercatat.</p>
+    {{end}}
+</div>
+{{end}}

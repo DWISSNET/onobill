@@ -1,0 +1,15 @@
+{{define "content"}}
+<div style="max-width:520px;margin:60px auto;text-align:center">
+    <div class="card" style="padding:40px">
+        <div style="font-size:64px">🔒</div>
+        <h2 style="color:#ef4444">Langganan Ditangguhkan</h2>
+        <p style="color:#666;line-height:1.6">
+            Akun tenant <strong>{{if .Tenant}}{{.Tenant.Name}}{{end}}</strong> sedang ditangguhkan
+            karena langganan belum diperpanjang.
+        </p>
+        <p style="color:#666">Pelanggan Anda <strong>tetap bisa internetan</strong> — hanya akses pengelolaan yang dikunci sementara.</p>
+        <p style="color:#666">Silakan lunasi tagihan langganan untuk membuka kembali akses.</p>
+        <a href="/logout" class="btn btn-secondary" style="margin-top:14px">Keluar</a>
+    </div>
+</div>
+{{end}}

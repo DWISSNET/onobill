@@ -1,0 +1,95 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>Router MikroTik</h1>
+    <button class="btn btn-primary" onclick="openModal('modalAdd')">+ Tambah Router</button>
+</div>
+
+<div class="card">
+    {{if .Routers}}
+    <table>
+        <thead>
+            <tr>
+                <th>Nama</th>
+                <th>Host</th>
+                <th>Port</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Terakhir Terlihat</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Routers}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td>{{.Host}}</td>
+                <td>{{.Port}}</td>
+                <td>{{.Username}}</td>
+                <td>{{if .IsActive}}<span class="badge badge-success">Aktif</span>{{else}}<span class="badge badge-secondary">Nonaktif</span>{{end}}</td>
+                <td>{{if .LastSeen}}{{.LastSeen.Format "02 Jan 06 15:04"}}{{else}}-{{end}}</td>
+                <td class="flex gap-2">
+                    <button class="btn btn-sm btn-primary" onclick="testRouter({{.ID}})">Test</button>
+                    <form method="POST" action="/routers/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Hapus router ini?')"><button class="btn btn-sm btn-danger">Hapus</button></form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada router. Tambahkan router MikroTik Anda.</p>
+    {{end}}
+</div>
+
+<div class="modal" id="modalAdd">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Tambah Router</div>
+            <button class="modal-close" onclick="closeModal('modalAdd')">&times;</button>
+        </div>
+        <form method="POST" action="/routers">
+            <div class="form-group">
+                <label class="form-label">Nama Router *</label>
+                <input type="text" name="name" class="form-input" placeholder="Router Pusat" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Jenis Koneksi *</label>
+                <select name="connection_type" class="form-input" required>
+                    <option value="l2tp">L2TP ke CHR (Recommended — router di NAT)</option>
+                    <option value="direct">Direct API (router IP publik / DDNS)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Versi MikroTik *</label>
+                <select name="ros_version" class="form-input" required>
+                    <option value="v7">RouterOS v7 (terbaru)</option>
+                    <option value="v6">RouterOS v6 (lama)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipe Layanan *</label>
+                <select name="service_type" class="form-input" required>
+                    <option value="hotspot">Hotspot (voucher)</option>
+                    <option value="pppoe">PPPoE</option>
+                    <option value="app">App / Campuran</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Expired Billing *</label>
+                <input type="date" name="expired_billing" class="form-input" required>
+            </div>
+            <p class="text-muted" style="font-size:12px;margin:8px 0">
+                Setelah simpan, Anda mendapat <strong>script siap copas</strong> ke terminal MikroTik. Router otomatis terdaftar setelah script dijalankan.
+            </p>
+            <button type="submit" class="btn btn-primary" style="width:100%">Buat &amp; Dapatkan Script</button>
+        </form>
+    </div>
+</div>
+
+<script>
+async function testRouter(id) {
+    const res = await fetch('/routers/' + id + '/test');
+    const data = await res.json();
+    alert(data.reachable ? '✅ Router ' + data.host + ' TERJANGKAU!' : '❌ Router ' + data.host + ' TIDAK TERJANGKAU');
+}
+</script>
+{{end}}

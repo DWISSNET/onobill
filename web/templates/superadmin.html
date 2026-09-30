@@ -1,0 +1,80 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>👑 Superadmin — Kontrol Platform</h1>
+    <div style="display:flex;gap:8px">
+        <a href="/superadmin/notify" class="btn btn-primary">📣 Notifikasi</a>
+        <a href="/superadmin/chr" class="btn btn-secondary">🖧 CHR</a>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
+    <div class="card" style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#2563eb">{{.TotalTenants}}</div>
+        <div style="color:#666">Total Tenant</div>
+    </div>
+    <div class="card" style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#10b981">{{.ActiveSub}}</div>
+        <div style="color:#666">Langganan Aktif</div>
+    </div>
+    <div class="card" style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#f59e0b">{{.GraceSub}}</div>
+        <div style="color:#666">Grace Period</div>
+    </div>
+    <div class="card" style="text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#ef4444">{{.SuspendedSub}}</div>
+        <div style="color:#666">Suspended</div>
+    </div>
+    <div class="card" style="text-align:center">
+        <div style="font-size:28px;font-weight:700;color:#7c3aed">Rp {{printf "%.0f" .MRR}}</div>
+        <div style="color:#666">MRR (per bulan)</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+    <h3 style="margin-top:0">💰 Paket Langganan (dijual ke tenant)</h3>
+    <table>
+        <thead><tr><th>Paket</th><th>Harga/Bulan</th><th>Max Router</th><th>Max Pelanggan</th></tr></thead>
+        <tbody>
+            {{range $k, $p := .Plans}}
+            <tr><td><strong>{{$p.Name}}</strong></td><td>Rp {{printf "%.0f" $p.Price}}</td><td>{{$p.MaxRouter}}</td><td>{{$p.MaxPelanggan}}</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3 style="margin-top:0">🏢 Daftar Tenant</h3>
+    {{if .Tenants}}
+    <table>
+        <thead><tr><th>Nama</th><th>Slug</th><th>Status</th><th>Terdaftar</th><th>Aksi</th></tr></thead>
+        <tbody>
+            {{range .Tenants}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td><code>{{.Slug}}</code></td>
+                <td>
+                    {{if eq .Status "active"}}<span class="badge badge-success">aktif</span>
+                    {{else if eq .Status "grace"}}<span class="badge badge-warning">grace</span>
+                    {{else}}<span class="badge badge-danger">suspended</span>{{end}}
+                </td>
+                <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
+                <td>
+                    {{if eq .Status "suspended"}}
+                    <form method="POST" action="/superadmin/tenants/{{.ID}}/activate" style="display:inline">
+                        <button class="btn btn-success btn-sm">Aktifkan</button>
+                    </form>
+                    {{else}}
+                    <form method="POST" action="/superadmin/tenants/{{.ID}}/suspend" style="display:inline" onsubmit="return confirm('Suspend tenant ini? Login tenant akan dikunci.')">
+                        <button class="btn btn-danger btn-sm">Suspend</button>
+                    </form>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada tenant.</p>
+    {{end}}
+</div>
+{{end}}

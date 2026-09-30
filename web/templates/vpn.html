@@ -1,0 +1,58 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>VPN WireGuard</h1>
+    <button class="btn btn-primary" onclick="openModal('modalAdd')">+ Tambah Peer</button>
+</div>
+
+<div class="card">
+    <p class="text-muted mb-4">Kelola koneksi WireGuard VPN antara server ONOBILL dan router MikroTik di lokasi pelanggan.</p>
+    {{if .Peers}}
+    <table>
+        <thead>
+            <tr>
+                <th>Nama</th>
+                <th>Router</th>
+                <th>IP VPN</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Peers}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td>{{if .Router}}{{.Router.Name}}{{else}}-{{end}}</td>
+                <td><code>{{.AllowedIP}}</code></td>
+                <td>{{.Endpoint}}</td>
+                <td><span class="badge badge-success">{{.Status}}</span></td>
+                <td class="flex gap-2">
+                    <a href="/vpn/peers/{{.ID}}/script" class="btn btn-sm btn-primary">Download Script</a>
+                    <form method="POST" action="/vpn/peers/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Hapus peer ini?')"><button class="btn btn-sm btn-danger">Hapus</button></form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="text-muted">Belum ada VPN peer. Buat peer baru untuk menghubungkan router via WireGuard.</p>
+    {{end}}
+</div>
+
+<div class="modal" id="modalAdd">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Tambah VPN Peer</div>
+            <button class="modal-close" onclick="closeModal('modalAdd')">&times;</button>
+        </div>
+        <form method="POST" action="/vpn/peers">
+            <div class="form-group"><label class="form-label">Nama Peer *</label><input type="text" name="name" class="form-input" placeholder="Router Cabang A" required></div>
+            <div class="form-group"><label class="form-label">Router (opsional)</label>
+                <select name="router_id" class="form-select"><option value="">- Tidak terikat router -</option>{{range .Routers}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
+            </div>
+            <div class="form-group"><label class="form-label">Endpoint (IP publik router)</label><input type="text" name="endpoint" class="form-input" placeholder="103.x.x.x"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Buat Peer</button>
+        </form>
+    </div>
+</div>
+{{end}}

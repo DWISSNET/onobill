@@ -1,0 +1,43 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>✅ Router Dibuat: {{.Plan.Name}}</h1>
+    <a href="/routers" class="btn btn-secondary">← Kembali ke Daftar Router</a>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+    <div style="background:#ecfdf5;border:1px solid #10b981;border-radius:8px;padding:14px;margin-bottom:14px">
+        <strong style="color:#065f46">Paste script di bawah ke terminal MikroTik.</strong>
+        <span style="color:#065f46">Router akan otomatis terdaftar &amp; terhubung ke ONOBILL.</span>
+    </div>
+
+    <table style="margin-bottom:14px">
+        <tr><td style="width:180px;color:#666">Koneksi</td><td><strong>{{.Plan.ConnectionType}}</strong></td></tr>
+        <tr><td style="color:#666">Versi MikroTik</td><td><strong>RouterOS {{.Plan.ROSVersion}}</strong></td></tr>
+        <tr><td style="color:#666">API User</td><td><code>{{.Plan.APIUsername}}</code></td></tr>
+        <tr><td style="color:#666">API Password</td><td><code>{{.Plan.APIPassword}}</code></td></tr>
+        {{if .Plan.TunnelIP}}<tr><td style="color:#666">Tunnel IP</td><td><code>{{.Plan.TunnelIP}}</code></td></tr>{{end}}
+        {{if .Plan.HotspotCIDR}}<tr><td style="color:#666">Hotspot Network</td><td><code>{{.Plan.HotspotCIDR}}</code></td></tr>{{end}}
+    </table>
+
+    <div style="position:relative">
+        <button class="btn btn-primary btn-sm" onclick="copyScript()" style="position:absolute;top:10px;right:10px;z-index:2">📋 Salin</button>
+        <pre id="scriptBox" style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;overflow:auto;font-size:12px;line-height:1.5;max-height:420px">{{.Plan.Script}}</pre>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-top:0">Langkah Selanjutnya</h3>
+    <ol style="line-height:2">
+        <li>Buka <strong>Winbox / WebFig</strong> → <strong>New Terminal</strong></li>
+        <li>Paste seluruh script di atas → tekan <strong>Enter</strong></li>
+        <li>Router otomatis menelepon ONOBILL &amp; muncul di daftar (refresh halaman Router)</li>
+    </ol>
+</div>
+
+<script>
+function copyScript() {
+    const t = document.getElementById('scriptBox').innerText;
+    navigator.clipboard.writeText(t).then(() => alert('✅ Script tersalin! Paste di terminal MikroTik.'));
+}
+</script>
+{{end}}

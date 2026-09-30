@@ -1,0 +1,68 @@
+{{define "content"}}
+<div class="topbar">
+    <h1>💳 Payment Gateway</h1>
+    <a href="/superadmin" class="btn btn-secondary">← Superadmin</a>
+</div>
+
+{{if .Success}}<div style="background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:12px;border-radius:8px;margin-bottom:14px">✅ {{.Success}}</div>{{end}}
+{{if .Error}}<div style="background:#fef2f2;border:1px solid #ef4444;color:#991b1b;padding:12px;border-radius:8px;margin-bottom:14px">❌ {{.Error}}</div>{{end}}
+
+<form method="POST" action="/superadmin/payment">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <!-- DUITKU -->
+    <div class="card">
+        <h3 style="margin-top:0">🟦 Duitku</h3>
+        <p style="color:#6b7280;font-size:13px;margin-top:0">QRIS, Virtual Account, e-wallet, retail. Mendukung sandbox untuk uji coba.</p>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="duitku_enabled" id="duitku_enabled" {{if .St.DuitkuEnabled}}checked{{end}}>
+            <label for="duitku_enabled" style="margin:0"><strong>Aktifkan Duitku</strong></label>
+        </div>
+        <div class="form-group"><label class="form-label">Merchant Code</label>
+            <input type="text" name="duitku_merchant" class="form-input" value="{{.St.DuitkuMerchant}}" placeholder="DSxxxxx"></div>
+        <div class="form-group"><label class="form-label">API Key</label>
+            <input type="password" name="duitku_api_key" class="form-input" value="" placeholder="{{if .St.DuitkuAPIKey}}•••••••• (tersimpan — kosongkan bila tidak diubah){{else}}API key dari dashboard Duitku{{end}}"></div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="duitku_sandbox" id="duitku_sandbox" {{if .St.DuitkuSandbox}}checked{{end}}>
+            <label for="duitku_sandbox" style="margin:0">Mode Sandbox (uji coba)</label>
+        </div>
+        <small style="color:#6b7280">Sandbox: <code>sandbox.duitku.com</code> &nbsp;•&nbsp; Produksi: <code>passport.duitku.com</code></small>
+    </div>
+
+    <!-- KLIKQRIS -->
+    <div class="card">
+        <h3 style="margin-top:0">🟩 KlikQRIS</h3>
+        <p style="color:#6b7280;font-size:13px;margin-top:0">QRIS statis/dinamis via KlikQRIS.</p>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="klikqris_enabled" id="klikqris_enabled" {{if .St.KlikQRISEnabled}}checked{{end}}>
+            <label for="klikqris_enabled" style="margin:0"><strong>Aktifkan KlikQRIS</strong></label>
+        </div>
+        <div class="form-group"><label class="form-label">Merchant ID</label>
+            <input type="text" name="klikqris_merchant" class="form-input" value="{{.St.KlikQRISMerchant}}" placeholder="merchant id"></div>
+        <div class="form-group"><label class="form-label">API Key</label>
+            <input type="password" name="klikqris_api_key" class="form-input" value="" placeholder="{{if .St.KlikQRISAPIKey}}•••••••• (tersimpan — kosongkan bila tidak diubah){{else}}API key KlikQRIS{{end}}"></div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+            <strong>🔗 Webhook Callback</strong><br>
+            <small style="color:#6b7280">Daftarkan URL ini di dashboard payment gateway Anda:</small><br>
+            <code id="cb" style="background:#f3f4f6;padding:4px 8px;border-radius:6px">{{.BaseURL}}/webhooks/payment/duitku</code>
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Simpan Konfigurasi</button>
+    </div>
+</div>
+</form>
+
+<div class="card" style="margin-top:16px;background:#fffbeb;border:1px solid #f59e0b">
+    <strong>ℹ️ Cara kerja:</strong>
+    <ol style="margin:8px 0 0 18px;color:#78350f;font-size:14px;line-height:1.7">
+        <li>Pelanggan bayar invoice → dibuatkan transaksi QRIS/VA di gateway aktif.</li>
+        <li>Gateway mengirim <em>webhook</em> ke URL callback di atas saat pembayaran sukses.</li>
+        <li>ONOBILL otomatis menandai invoice <strong>lunas</strong> & mengaktifkan pelanggan.</li>
+        <li>Perubahan konfigurasi di halaman ini berlaku <strong>langsung tanpa restart</strong>.</li>
+    </ol>
+</div>
+{{end}}
