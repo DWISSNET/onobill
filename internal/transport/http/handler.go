@@ -643,7 +643,7 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 		ConnectionType: r.FormValue("connection_type"), // direct | l2tp
 		ROSVersion:     r.FormValue("ros_version"),     // v6 | v7
 		ServiceType:    r.FormValue("service_type"),    // app | hotspot | pppoe
-		ExpiredBilling: r.FormValue("expired_billing"), // tanggal expired
+		ExpiredMode:    r.FormValue("expired_mode"),    // app | mikrotik
 	}
 	plan, err := provisioning.BuildPlan(in, h.IPAM, 0)
 	if err != nil {

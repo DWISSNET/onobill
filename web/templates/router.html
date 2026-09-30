@@ -75,7 +75,14 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Expired Billing *</label>
-                <input type="date" name="expired_billing" class="form-input" required>
+                <select name="expired_mode" class="form-input" required>
+                    <option value="app">Di App (ONOBILL yang isolir — Recommended)</option>
+                    <option value="mikrotik">Di MikroTik (router putus sendiri via scheduler)</option>
+                </select>
+                <small class="text-muted" style="font-size:11px;display:block;margin-top:4px">
+                    <strong>Di App:</strong> ONOBILL isolir pelanggan jatuh tempo via API (terpusat).
+                    <strong>Di MikroTik:</strong> router memutus sendiri tiap hari — tetap enforce walau offline dari ONOBILL.
+                </small>
             </div>
             <p class="text-muted" style="font-size:12px;margin:8px 0">
                 Setelah simpan, Anda mendapat <strong>script siap copas</strong> ke terminal MikroTik. Router otomatis terdaftar setelah script dijalankan.

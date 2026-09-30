@@ -19,7 +19,7 @@ type RouterInput struct {
 	ConnectionType string // "direct" | "l2tp"
 	ROSVersion     string // "v6" | "v7"
 	ServiceType    string // "app" | "hotspot" | "pppoe"
-	ExpiredBilling string // tanggal expired billing (YYYY-MM-DD)
+	ExpiredMode    string // "app" (Onobill yang isolir) | "mikrotik" (router putus sendiri via scheduler)
 	HotspotName    string
 	HotspotDNS     string
 }
@@ -53,6 +53,9 @@ func BuildPlan(in RouterInput, ipamSvc *ipam.Service, routerID uint) (*RouterPla
 	}
 	if in.ConnectionType == "" {
 		in.ConnectionType = "direct"
+	}
+	if in.ExpiredMode == "" {
+		in.ExpiredMode = "app" // default: ONOBILL yang kelola expired & isolir
 	}
 	plan := &RouterPlan{
 		Name:           in.Name,
@@ -142,7 +145,35 @@ func GenerateScript(in RouterInput, p *RouterPlan) string {
 		"/ip firewall address-list add list=ISOLIR address=0.0.0.0 comment=\"placeholder\"",
 		"/ip firewall nat add chain=dstnat src-address-list=ISOLIR protocol=tcp dst-port=80 action=redirect to-ports=8080 comment=\"ONOBILL isolir redirect\"",
 		"",
-		"# Selesai! Router akan terhubung & dikelola ONOBILL.",
+	)
+
+	// Expired billing: di mana penanganan expired dilakukan?
+	if in.ExpiredMode == "mikrotik" {
+		// Router memutus sendiri via scheduler harian — berguna bila koneksi ke
+		// ONOBILL terputus (router tetap enforce walau API tak terjangkau).
+		L = append(L,
+			"# --- 5. Expired Billing: diputus oleh MIKROTIK (scheduler) ---",
+			"# Router mengecek & menonaktifkan secret/user yang expired SETIAP HARI 00:05.",
+			"# Cocok bila router sering offline dari ONOBILL — tetap enforce mandiri.",
+			`/system scheduler add name=onobill-expired-check interval=24h start-time=00:05:00 `+
+				`on-event="/ppp secret set [find comment~\"expired\"] disabled=yes; `+
+				`/ip hotspot user set [find comment~\"expired\"] disabled=yes" `+
+				`comment="ONOBILL: putus layanan expired harian"`,
+			"",
+			"# Selesai! Expired billing ditangani MIKROTIK (mandiri di router).",
+		)
+	} else {
+		// Default: ONOBILL (app) yang mengelola expired & isolir lewat API.
+		L = append(L,
+			"# --- 5. Expired Billing: dikelola oleh APP (ONOBILL) ---",
+			"# ONOBILL otomatis mengisolir pelanggan yang jatuh tempo lewat API router.",
+			"# Tidak ada scheduler di router — semua dikontrol terpusat dari dashboard.",
+			"",
+			"# Selesai! Expired billing ditangani APP (ONOBILL).",
+		)
+	}
+
+	L = append(L,
 		fmt.Sprintf("# Simpan kredensial API: user=%s pass=%s", p.APIUsername, p.APIPassword),
 	)
 
