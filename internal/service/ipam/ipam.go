@@ -155,3 +155,31 @@ func GatewayIP(cidr string) string {
 	gw[3]++
 	return strings.TrimSpace(gw.String())
 }
+
+// DHCPRange mengembalikan range DHCP "start-end" untuk sebuah subnet:
+// mulai dari host ke-2 (gateway = host ke-1) sampai host terakhir.
+// Contoh "10.10.1.0/24" -> "10.10.1.2-10.10.1.254".
+func DHCPRange(cidr string) string {
+	_, n, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return ""
+	}
+	ip := n.IP.Mask(n.Mask).To4()
+	if ip == nil {
+		return ""
+	}
+	ones, bits := n.Mask.Size()
+	if bits != 32 {
+		return ""
+	}
+	hostCount := uint32(1) << uint(32-ones) // total alamat dalam subnet
+	if hostCount < 4 {
+		return ""
+	}
+	base := uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
+	start := base + 2            // lewati network (.0) & gateway (.1)
+	end := base + hostCount - 2  // lewati broadcast (.255)
+	return fmt.Sprintf("%d.%d.%d.%d-%d.%d.%d.%d",
+		byte(start>>24), byte(start>>16), byte(start>>8), byte(start),
+		byte(end>>24), byte(end>>16), byte(end>>8), byte(end))
+}

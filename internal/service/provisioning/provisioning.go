@@ -117,8 +117,8 @@ func GenerateScript(in RouterInput, p *RouterPlan) string {
 	if in.ConnectionType == "l2tp" {
 		L = append(L,
 			"# --- 2. Tunnel L2TP ke CHR ONOBILL ---",
-			fmt.Sprintf("# (isi connect-to & user sesuai CHR; IP tunnel router: %s)", p.TunnelIP),
-			"/interface l2tp-client add name=onobill-tunnel connect-to=CHR_IP user=onobill password="+p.APIPassword+" disabled=no comment=\"ONOBILL tunnel\"",
+			fmt.Sprintf("# IP tunnel router ini: %s", p.TunnelIP),
+			"/interface l2tp-client add name=onobill-tunnel connect-to=103.174.115.207 user=onobill password="+p.APIPassword+" disabled=no comment=\"ONOBILL tunnel\"",
 			"",
 		)
 	} else {
@@ -130,9 +130,10 @@ func GenerateScript(in RouterInput, p *RouterPlan) string {
 	}
 
 	// Hotspot (nama + DNS + network)
+	dhcpRange := ipam.DHCPRange(p.HotspotCIDR)
 	L = append(L,
 		"# --- 3. Setup Hotspot ---",
-		fmt.Sprintf("/ip pool add name=onobill-hotspot ranges=%s-%s", gw, gw),
+		fmt.Sprintf("/ip pool add name=onobill-hotspot ranges=%s", dhcpRange),
 		fmt.Sprintf("/ip hotspot profile add name=onobill-prof dns-name=%s hotspot-address=%s login-by=http-chap,http-pap", hsDNS, gw),
 		fmt.Sprintf("/ip hotspot add name=%s interface=ether2 address-pool=onobill-hotspot profile=onobill-prof disabled=no", hsName),
 		fmt.Sprintf("/ip address add address=%s/24 comment=\"ONOBILL hotspot\" interface=ether2", gw),
