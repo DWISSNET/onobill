@@ -136,3 +136,53 @@ func FindL2TPClientIP(host string, port int, username, password string, useTLS b
 	}
 	return ""
 }
+
+// dial koneksi API ke CHR (helper internal).
+func dial(host string, port int, username, password string, useTLS bool) (*routeros.Client, error) {
+	addr := domain.RouterAddr(host, port)
+	if useTLS {
+		return routeros.DialTLS(addr, username, password, &tls.Config{
+			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS12,
+		})
+	}
+	return routeros.Dial(addr, username, password)
+}
+
+// EnsurePPPSecret memastikan PPP secret (service l2tp) untuk router tenant ada di CHR.
+// Idempotent: bila sudah ada, password & profil diperbarui; bila belum, dibuat.
+// Dipakai saat provisioning agar router tenant bisa langsung dial L2TP ke CHR.
+// comment diisi token penanda agar mudah dilacak/dibersihkan per router.
+func EnsurePPPSecret(host string, port int, username, password string, useTLS bool, secret, secretPass, comment string) error {
+	if host == "" || secret == "" {
+		return nil
+	}
+	client, err := dial(host, port, username, password, useTLS)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	// Cek apakah secret sudah ada.
+	rep, err := client.Run("/ppp/secret/print", "?name="+secret, "=.proplist=.id")
+	if err == nil && len(rep.Re) > 0 {
+		// Sudah ada -> pastikan password & service benar (update).
+		id := rep.Re[0].Map[".id"]
+		_, err = client.Run("/ppp/secret/set",
+			"=.id="+id,
+			"=password="+secretPass,
+			"=service=l2tp",
+			"=comment="+comment,
+		)
+		return err
+	}
+
+	// Belum ada -> buat baru.
+	_, err = client.Run("/ppp/secret/add",
+		"=name="+secret,
+		"=password="+secretPass,
+		"=service=l2tp",
+		"=comment="+comment,
+	)
+	return err
+}

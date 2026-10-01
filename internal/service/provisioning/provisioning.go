@@ -20,6 +20,7 @@ type RouterInput struct {
 	ROSVersion     string // "v6" | "v7"
 	ServiceType    string // "app" | "hotspot" | "pppoe"
 	ExpiredMode    string // "app" (Onobill yang isolir) | "mikrotik" (router putus sendiri via scheduler)
+	DirectHost     string // IP/hostname router (khusus koneksi direct) — untuk ONOBILL dial balik
 	HotspotName    string
 	HotspotDNS     string
 }

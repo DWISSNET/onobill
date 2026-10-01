@@ -2,8 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +15,7 @@ import (
 	"onobill/internal/repository"
 	"onobill/internal/service/auth"
 	"onobill/internal/service/billing"
+	"onobill/internal/service/chr"
 	"onobill/internal/service/customer"
 	"onobill/internal/service/ipam"
 	"onobill/internal/service/isolation"
@@ -644,18 +647,43 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 		ROSVersion:     r.FormValue("ros_version"),     // v6 | v7
 		ServiceType:    r.FormValue("service_type"),    // app | hotspot | pppoe
 		ExpiredMode:    r.FormValue("expired_mode"),    // app | mikrotik
+		DirectHost:     strings.TrimSpace(r.FormValue("direct_host")), // IP/host router (direct)
 	}
 	plan, err := provisioning.BuildPlan(in, h.IPAM, 0)
 	if err != nil {
 		http.Redirect(w, r, "/routers?error="+err.Error(), http.StatusSeeOther)
 		return
 	}
+
+	// Jika koneksi L2TP: auto-buat PPP secret di CHR agar router bisa langsung dial.
+	// Secret name = user L2TP yang sama dipakai di script router ("onobill").
+	if in.ConnectionType == "l2tp" && h.Repo != nil {
+		if c, err := h.Repo.ActiveCHR(); err == nil && c != nil {
+			useTLS := c.APIPort == 8729
+			secretName := "onobill-" + strings.ToLower(strings.ReplaceAll(in.Name, " ", "-"))
+			comment := "ONOBILL router " + in.Name
+			if err := chr.EnsurePPPSecret(c.Host, c.APIPort, c.Username, c.Password, useTLS,
+				secretName, plan.APIPassword, comment); err != nil {
+				log.Printf("[provisioning] gagal buat PPP secret di CHR %s: %v", c.Host, err)
+			} else {
+				log.Printf("[provisioning] PPP secret %s dibuat di CHR %s", secretName, c.Host)
+			}
+			// Script router memakai user L2TP yang sama dengan secret di CHR.
+			plan.Script = strings.Replace(plan.Script, "user=onobill ", "user="+secretName+" ", 1)
+		}
+	}
+
 	// Sisipkan check-in agar router otomatis tersimpan setelah paste script
 	token := h.Repo.EnsureOnboardToken(tenantID)
+	checkinURL := h.BaseURL + "/api/onboard/" + token +
+		"?name=" + url.QueryEscape(in.Name) + "&user=" + url.QueryEscape(plan.APIUsername) +
+		"&pass=" + url.QueryEscape(plan.APIPassword) + "&mode=" + url.QueryEscape(in.ServiceType)
+	// Untuk koneksi direct: kirim IP/host router agar ONOBILL tahu alamat untuk dial balik.
+	if in.ConnectionType == "direct" && in.DirectHost != "" {
+		checkinURL += "&host=" + url.QueryEscape(in.DirectHost)
+	}
 	plan.Script += "\n\n# --- Daftar ke ONOBILL (otomatis tersimpan) ---\n" +
-		"/tool fetch url=\"" + h.BaseURL + "/api/onboard/" + token +
-		"?name=" + in.Name + "&user=" + plan.APIUsername + "&pass=" + plan.APIPassword +
-		"&mode=" + in.ServiceType + "\" keep-result=no\n"
+		"/tool fetch url=\"" + checkinURL + "\" keep-result=no\n"
 
 	// Tampilkan halaman berisi script siap copas
 	render(w, "router_script", map[string]interface{}{

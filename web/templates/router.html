@@ -53,11 +53,28 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Jenis Koneksi *</label>
-                <select name="connection_type" class="form-input" required>
+                <select name="connection_type" id="connType" class="form-input" required onchange="toggleDirectHost()">
                     <option value="l2tp">L2TP ke CHR (Recommended — router di NAT)</option>
                     <option value="direct">Direct API (router IP publik / DDNS)</option>
                 </select>
             </div>
+            <div class="form-group" id="directHostGroup" style="display:none">
+                <label class="form-label">IP / Hostname Router (untuk Direct) *</label>
+                <input type="text" name="direct_host" id="directHost" class="form-input" placeholder="contoh: 103.150.20.5 atau router.ddns.net">
+                <small class="text-muted" style="font-size:11px;display:block;margin-top:4px">
+                    IP publik / DDNS yang bisa dihubungi ONOBILL untuk mengelola router ini (API port 8728).
+                </small>
+            </div>
+<script>
+function toggleDirectHost(){
+    var v = document.getElementById('connType').value;
+    var g = document.getElementById('directHostGroup');
+    var i = document.getElementById('directHost');
+    if(v === 'direct'){ g.style.display='block'; i.required = true; }
+    else { g.style.display='none'; i.required = false; }
+}
+document.addEventListener('DOMContentLoaded', toggleDirectHost);
+</script>
             <div class="form-group">
                 <label class="form-label">Versi MikroTik *</label>
                 <select name="ros_version" class="form-input" required>
