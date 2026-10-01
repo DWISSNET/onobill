@@ -37,7 +37,30 @@
 <script>
 function copyScript() {
     const t = document.getElementById('scriptBox').innerText;
-    navigator.clipboard.writeText(t).then(() => alert('✅ Script tersalin! Paste di terminal MikroTik.'));
+    const done = () => alert('✅ Script tersalin! Paste di terminal MikroTik.');
+    // Coba Clipboard API dulu (butuh HTTPS/localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(t).then(done).catch(() => legacyCopy(t, done));
+    } else {
+        legacyCopy(t, done);
+    }
+}
+// Fallback untuk HTTP / browser lama: pakai textarea + execCommand
+function legacyCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok) { done(); }
+    else { alert('⚠️ Gagal menyalin otomatis. Silakan blok teks script lalu Ctrl+C manual.'); }
 }
 </script>
 {{end}}
