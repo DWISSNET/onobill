@@ -693,7 +693,9 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sisipkan check-in agar router otomatis tersimpan setelah paste script
+	// Sisipkan check-in agar router otomatis tersimpan setelah paste script.
+	// Token disisipkan via placeholder __TOKEN__ agar tidak diutak-atik html/template
+	// (bug path token tanpa '?' ketika memakai {{.Token}} di dalam template).
 	token := h.Repo.EnsureOnboardToken(tenantID)
 	checkinURL := h.BaseURL + "/api/onboard/" + token +
 		"?name=" + url.QueryEscape(in.Name) + "&user=" + url.QueryEscape(plan.APIUsername) +
@@ -705,10 +707,10 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 	plan.Script += "\n\n# --- Daftar ke ONOBILL (otomatis tersimpan) ---\n" +
 		"/tool fetch url=\"" + checkinURL + "\" keep-result=no\n"
 
-	// Tampilkan halaman berisi script siap copas
+	// Tampilkan halaman berisi script siap copas (Script di-escape aman oleh template).
 	render(w, "router_script", map[string]interface{}{
-		"Title": "Script Router - ONOBILL",
-		"Page":  "router",
+		"Title": "Script Provisioning - " + in.Name,
+		"Page":  "routers",
 		"Plan":  plan,
 	})
 }
