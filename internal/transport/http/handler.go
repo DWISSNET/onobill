@@ -629,6 +629,26 @@ func (h *Handler) RouterList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// sanitizeSecretName membersihkan nama router menjadi nama PPP secret yang aman
+// untuk MikroTik: huruf kecil, hanya alfanumerik + '-' + '_', spasi jadi '-'.
+func sanitizeSecretName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		case r == ' ', r == '/', r == '\\', r == '.':
+			b.WriteRune('-')
+		}
+	}
+	out := b.String()
+	if out == "" {
+		out = "router"
+	}
+	return out
+}
+
 // RouterCreate — alur sederhana: admin cuma isi nama router, pilih jenis koneksi,
 // versi MikroTik (v6/v7), tipe layanan (app/hotspot/pppoe), dan expired billing.
 // Sistem otomatis: generate kredensial API + alokasi IP + script copas.
@@ -656,11 +676,11 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Jika koneksi L2TP: auto-buat PPP secret di CHR agar router bisa langsung dial.
-	// Secret name = user L2TP yang sama dipakai di script router ("onobill").
+	// Secret name = user L2TP yang sama dipakai di script router.
 	if in.ConnectionType == "l2tp" && h.Repo != nil {
 		if c, err := h.Repo.ActiveCHR(); err == nil && c != nil {
 			useTLS := c.APIPort == 8729
-			secretName := "onobill-" + strings.ToLower(strings.ReplaceAll(in.Name, " ", "-"))
+			secretName := "onobill-" + sanitizeSecretName(in.Name)
 			comment := "ONOBILL router " + in.Name
 			if err := chr.EnsurePPPSecret(c.Host, c.APIPort, c.Username, c.Password, useTLS,
 				secretName, plan.APIPassword, comment); err != nil {
