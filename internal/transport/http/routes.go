@@ -163,4 +163,12 @@ func SetupRoutes(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("POST /portal/login", h.PortalLoginSubmit)
 	mux.HandleFunc("GET /portal/logout", h.PortalLogout)
 	mux.HandleFunc("GET /portal", h.PortalHome)
+
+	// Top-up wallet menerima callback yang sama, tetapi memakai order id berprefix MC-TU-.
+	mux.HandleFunc("POST /webhooks/wallet/{gateway}", h.WalletWebhook)
+
+	// Platform wallet / Duitku top-up (tenant-authenticated)
+	mux.HandleFunc("GET /api/v1/wallet", h.RequireAuth(h.APIWallet, true))
+	mux.HandleFunc("GET /api/v1/wallet/ledger", h.RequireAuth(h.APIWalletLedger, true))
+	mux.HandleFunc("POST /api/v1/wallet/topups", h.RequireAuth(h.APICreateWalletTopUp, true))
 }

@@ -318,6 +318,52 @@ type NotifLog struct {
 	CreatedAt  time.Time  `json:"created_at"`
 }
 
+// ============ PLATFORM WALLET / TOP-UP ============
+
+// Wallet menyimpan saldo prabayar tenant untuk layanan platform.
+// Semua nominal disimpan sebagai integer Rupiah, bukan float.
+type Wallet struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	TenantID  uint      `gorm:"uniqueIndex;not null" json:"tenant_id"`
+	Balance   int64     `gorm:"not null;default:0" json:"balance"`
+	Currency  string    `gorm:"size:3;not null;default:'IDR'" json:"currency"`
+	Status    string    `gorm:"size:20;not null;default:'active'" json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// WalletLedger adalah append-only audit trail perubahan saldo.
+type WalletLedger struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	TenantID      uint      `gorm:"index;uniqueIndex:ux_wallet_ledger_reference;not null" json:"tenant_id"`
+	WalletID      uint      `gorm:"index;not null" json:"wallet_id"`
+	ReferenceType string    `gorm:"size:40;uniqueIndex:ux_wallet_ledger_reference;not null" json:"reference_type"`
+	ReferenceID   string    `gorm:"size:120;uniqueIndex:ux_wallet_ledger_reference;not null" json:"reference_id"`
+	EntryType     string    `gorm:"size:20;uniqueIndex:ux_wallet_ledger_reference;not null" json:"entry_type"` // credit|debit|reversal
+	Amount        int64     `gorm:"not null" json:"amount"`
+	BalanceBefore int64     `gorm:"not null" json:"balance_before"`
+	BalanceAfter  int64     `gorm:"not null" json:"balance_after"`
+	Description   string    `gorm:"size:255" json:"description"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// TopUp mewakili satu order pembayaran wallet ke Duitku.
+type TopUp struct {
+	ID               uint       `gorm:"primaryKey" json:"id"`
+	TenantID         uint       `gorm:"index;not null" json:"tenant_id"`
+	OrderID          string     `gorm:"size:100;uniqueIndex;not null" json:"order_id"`
+	Gateway          string     `gorm:"size:40;not null;default:'duitku'" json:"gateway"`
+	GatewayReference string     `gorm:"size:150;index" json:"gateway_reference"`
+	Amount           int64      `gorm:"not null" json:"amount"`
+	Status           string     `gorm:"size:20;not null;default:'pending'" json:"status"` // pending|paid|expired|failed
+	PaymentURL       string     `gorm:"type:text" json:"payment_url"`
+	QRString         string     `gorm:"type:text" json:"qr_string"`
+	ExpiresAt        time.Time  `json:"expires_at"`
+	PaidAt           *time.Time `json:"paid_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
 // ============ JOB QUEUE ============
 
 type Job struct {

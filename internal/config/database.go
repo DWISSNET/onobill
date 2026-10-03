@@ -50,6 +50,9 @@ func ConnectDB(cfg Config) (*gorm.DB, error) {
 		&domain.NotifSetting{},
 		&domain.PaymentGatewaySetting{},
 		&domain.NotifLog{},
+		&domain.Wallet{},
+		&domain.WalletLedger{},
+		&domain.TopUp{},
 	); err != nil {
 		return nil, fmt.Errorf("migration failed: %w", err)
 	}

@@ -30,6 +30,7 @@ import (
 	"onobill/internal/service/tenant"
 	"onobill/internal/service/voucher"
 	"onobill/internal/service/vpn"
+	"onobill/internal/service/wallet"
 )
 
 type Handler struct {
@@ -50,12 +51,12 @@ type Handler struct {
 	Subscription *subscription.Service
 	MikroSync    *mikrosync.Engine // auto-sync ke MikroTik (PPPoE/hotspot/voucher)
 	Portal       *portal.Service   // portal self-service pelanggan
+	Wallet       *wallet.Service
 
 	loginMu      sync.Mutex
 	loginAttempt map[string]*loginAttempt
 }
 
-// loginAttempt melacak percobaan login gagal per kunci (email|ip).
 type loginAttempt struct {
 	count   int
 	blocked time.Time
@@ -182,6 +183,12 @@ func (h *Handler) WithPackage(s *pkg.Service) *Handler {
 // Setelah dipasang, aksi create/isolir pelanggan otomatis push ke router.
 func (h *Handler) WithMikroSync(e *mikrosync.Engine) *Handler {
 	h.MikroSync = e
+	return h
+}
+
+// WithWallet melampirkan service saldo platform.
+func (h *Handler) WithWallet(s *wallet.Service) *Handler {
+	h.Wallet = s
 	return h
 }
 
@@ -663,10 +670,10 @@ func (h *Handler) RouterCreate(w http.ResponseWriter, r *http.Request) {
 	in := provisioning.RouterInput{
 		TenantID:       tenantID,
 		Name:           r.FormValue("name"),
-		ConnectionType: r.FormValue("connection_type"), // direct | l2tp
-		ROSVersion:     r.FormValue("ros_version"),     // v6 | v7
-		ServiceType:    r.FormValue("service_type"),    // app | hotspot | pppoe
-		ExpiredMode:    r.FormValue("expired_mode"),    // app | mikrotik
+		ConnectionType: r.FormValue("connection_type"),                // direct | l2tp
+		ROSVersion:     r.FormValue("ros_version"),                    // v6 | v7
+		ServiceType:    r.FormValue("service_type"),                   // app | hotspot | pppoe
+		ExpiredMode:    r.FormValue("expired_mode"),                   // app | mikrotik
 		DirectHost:     strings.TrimSpace(r.FormValue("direct_host")), // IP/host router (direct)
 	}
 	plan, err := provisioning.BuildPlan(in, h.IPAM, 0)

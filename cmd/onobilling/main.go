@@ -32,6 +32,7 @@ import (
 	"onobill/internal/service/tenant"
 	"onobill/internal/service/voucher"
 	"onobill/internal/service/vpn"
+	"onobill/internal/service/wallet"
 	httptransport "onobill/internal/transport/http"
 	"onobill/internal/worker"
 )
@@ -143,6 +144,9 @@ func main() {
 		log.Printf("[portal] migrate warning: %v", err)
 	}
 
+	// Platform wallet untuk top-up QRIS dan debit layanan.
+	walletSvc := wallet.NewService(db)
+
 	// Init HTTP handler
 	handler := httptransport.NewHandler(authSvc, customerSvc, billingSvc, routerSvc, tenantSvc, vpnSvc, isolationSvc).
 		WithPayment(payReg, notifySvc, repo).
@@ -151,7 +155,8 @@ func main() {
 		WithSubscription(subSvc).
 		WithVoucher(voucherSvc).
 		WithPackage(pkgSvc).
-		WithPortal(portalSvc)
+		WithPortal(portalSvc).
+		WithWallet(walletSvc)
 
 	// Muat konfigurasi payment gateway yang tersimpan di DB (dari UI Superadmin)
 	// — menimpa / melengkapi yang dari env var, berlaku tanpa restart.
